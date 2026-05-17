@@ -42,7 +42,7 @@ go build -ldflags="-H windowsgui -w -s" -o netwatch_engine.exe ./cmd/server/main
 
 Para iniciar, dê um duplo clique em netwatch_engine.exe. A aplicação registrará a si mesma na inicialização e abrirá no seu navegador padrão.
 
-#🐧 Linux
+# 🐧 Linux
 Para compilar um binário otimizado para servidores ou desktops Linux:
 
 ```Bash
