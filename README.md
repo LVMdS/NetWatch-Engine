@@ -121,6 +121,8 @@ Acessando a Dashboard Remotamente:
 
 No navegador do seu dispositivo remoto (certifique-se de que a conexão ZeroTier está ativada), digite a URL usando o IP gerado: http://IpGerado:8080.
 
+## 📁 Estrutura do Projeto
+```
 NetWatch/
  ├── cmd/server/main.go       # Ponto de entrada, trava de diretório e rotas HTTP
  ├── database/                # Conexão GORM e AutoMigrate configurado para SQLite
@@ -134,6 +136,6 @@ NetWatch/
  │    └── websocket/          # Hub de sincronização em Tempo Real via WebSocket
  ├── go.mod                   # Gestão de dependências do Go
  └── netwatch.db              # (Criado automaticamente durante a execução)
-
+```
 
  O NetWatch Engine foi desenhado como uma solução "Drop & Run", oferecendo observabilidade profunda e infraestrutura profissional sem a dor de cabeça de configurações complexas.
