@@ -119,7 +119,7 @@ O painel atribuirá um IP interno exclusivo (ex: 10.147.20.15) ao seu Servidor.
 
 Acessando a Dashboard Remotamente:
 
-No navegador do seu dispositivo remoto (certifique-se de que a conexão ZeroTier está ativada), digite a URL usando o IP gerado: http://10.147.20.15:8080.
+No navegador do seu dispositivo remoto (certifique-se de que a conexão ZeroTier está ativada), digite a URL usando o IP gerado: http://IpGerado:8080.
 
 NetWatch/
  ├── cmd/server/main.go       # Ponto de entrada, trava de diretório e rotas HTTP
