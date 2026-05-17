@@ -42,35 +42,37 @@ go build -ldflags="-H windowsgui -w -s" -o netwatch_engine.exe ./cmd/server/main
 
 Para iniciar, dê um duplo clique em netwatch_engine.exe. A aplicação registrará a si mesma na inicialização e abrirá no seu navegador padrão.
 
-🐧 Linux
+#🐧 Linux
 Para compilar um binário otimizado para servidores ou desktops Linux:
 
-Bash
-# 1. Sincronizar dependências
+```Bash
+## 1. Sincronizar dependências
 go mod tidy
 
-# 2. Compilar
+## 2. Compilar
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o netwatch_engine ./cmd/server/main.go
 
 # 3. Dar permissão de execução e rodar
 chmod +x netwatch_engine
 ./netwatch_engine
+```
 
-🍎 macOS
+# 🍎 macOS
 Para compilar no macOS (escolha a arquitetura correta do seu processador):
 
-Bash
-# 1. Sincronizar dependências
+```Bash
+## 1. Sincronizar dependências
 go mod tidy
 
-# 2A. Para Macs com Apple Silicon (M1/M2/M3):
+## 2A. Para Macs com Apple Silicon (M1/M2/M3):
 CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s" -o netwatch_engine_mac ./cmd/server/main.go
 
-# 2B. Para Macs com Processadores Intel:
+## 2B. Para Macs com Processadores Intel:
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o netwatch_engine_mac ./cmd/server/main.go
 
-# 3. Executar
+## 3. Executar
 ./netwatch_engine_mac
+```
 
 ⚙️ Configuração Inicial
 Ao executar o NetWatch pela primeira vez, o sistema gerará automaticamente um arquivo netwatch.db (banco de dados SQLite) na mesma pasta do executável.
