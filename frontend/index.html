@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>NetWatch Pro | SaaS Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style> [x-cloak] { display: none !important; } </style>
+</head>
+<body class="bg-[#0f172a] text-slate-200 min-h-screen" x-data="netwatchApp()">
+
+    <div x-show="!isAuthenticated" x-cloak class="min-h-screen flex items-center justify-center px-4 py-12">
+        <div class="bg-slate-800 p-8 rounded-3xl border border-slate-700 w-full max-w-md shadow-2xl">
+            <h1 class="text-2xl font-black text-center text-blue-400 mb-6">NETWATCH PRO 📡</h1>
+            
+            <div class="flex bg-slate-900 p-1 rounded-xl mb-6">
+                <button @click="authTab = 'login'" class="flex-1 py-2 rounded-lg text-sm font-bold transition" :class="authTab === 'login' ? 'bg-blue-600 text-white' : 'text-slate-400'">Entrar</button>
+                <button @click="authTab = 'register'" class="flex-1 py-2 rounded-lg text-sm font-bold transition" :class="authTab === 'register' ? 'bg-blue-600 text-white' : 'text-slate-400'">Cadastrar</button>
+            </div>
+
+            <form x-show="authTab === 'login'" @submit.prevent="doLogin()" class="space-y-4">
+                <input x-model="loginForm.email" type="email" required placeholder="E-mail" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <input x-model="loginForm.password" type="password" required placeholder="Senha" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="w-full bg-blue-600 p-3 rounded-xl font-bold hover:bg-blue-500 transition">Acessar Painel</button>
+            </form>
+
+            <form x-show="authTab === 'register'" @submit.prevent="doRegister()" class="space-y-4">
+                <input x-model="regForm.name" type="text" required placeholder="Nome Completo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <input x-model="regForm.email" type="email" required placeholder="E-mail Corporativo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <input x-model="regForm.password" type="password" required placeholder="Crie uma Senha" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <input x-model="regForm.company" type="text" placeholder="Empresa (Opcional)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-400 px-1">Webhook do Discord (Opcional)</label>
+                    <input x-model="regForm.discord_webhook" type="text" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 text-xs font-mono">
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 p-3 rounded-xl font-bold hover:bg-emerald-500 transition">Criar Conta</button>
+            </form>
+        </div>
+    </div>
+
+    <div x-show="isAuthenticated" x-cloak>
+        <nav class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center overflow-x-auto">
+                <h1 @click="tab = 'dashboard'; cancelEdit()" class="text-xl font-black tracking-tighter text-blue-400 mr-6 cursor-pointer select-none">NETWATCH 📡</h1>
+                
+                <div class="flex gap-2 items-center">
+                    <button @click="tab = 'dashboard'; cancelEdit()" class="px-3 py-2 rounded-lg text-sm transition" :class="tab === 'dashboard' ? 'bg-blue-600 font-bold' : 'hover:bg-slate-800'">Dashboard</button>
+                    <button @click="tab = 'groups'" class="px-3 py-2 rounded-lg text-sm transition" :class="tab === 'groups' ? 'bg-blue-600 font-bold' : 'hover:bg-slate-800'">Segmentos</button>
+                    <button @click="tab = 'register'; cancelEdit()" class="px-3 py-2 rounded-lg text-sm transition" :class="tab === 'register' ? 'bg-blue-600 font-bold' : 'hover:bg-slate-800'">Adicionar IP</button>
+                    <button @click="tab = 'scanner'" class="px-3 py-2 rounded-lg text-sm transition text-blue-400 border border-blue-500/30" :class="tab === 'scanner' ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-800'">Descoberta</button>
+                    <button @click="loadUsers(); tab = 'users'" class="px-3 py-2 rounded-lg text-sm transition" :class="tab === 'users' ? 'bg-blue-600 font-bold' : 'hover:bg-slate-800'">Acessos</button>
+                    <button @click="loadAdminProfile(); tab = 'settings'" class="px-3 py-2 rounded-lg text-sm transition text-emerald-400" :class="tab === 'settings' ? 'bg-emerald-600 text-white font-bold' : 'hover:bg-slate-800'">Opções Globais</button>
+                    
+                    <button @click="shutdownServer()" class="ml-4 px-3 py-2 bg-red-600/20 text-red-400 rounded-lg text-sm hover:bg-red-600 hover:text-white transition font-bold border border-red-600/30">Desligar</button>
+                    <button @click="logout()" class="px-3 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm hover:bg-slate-600 transition">Sair</button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto px-6 py-10">
+            
+            <div x-show="tab === 'dashboard'">
+                <div class="mb-8 bg-slate-800/60 border border-slate-700 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between shadow-lg">
+                    <div class="flex items-center gap-3 w-full sm:w-1/3">
+                        <div class="bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700/60 flex items-center gap-2 w-full">
+                            <span class="text-xs text-slate-500 font-bold uppercase">Org:</span>
+                            <span class="text-xs font-bold text-slate-300 truncate" x-text="adminProfile.company || 'Não informada'"></span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-1/3">
+                        <span class="text-slate-500">🔍</span>
+                        <input x-model="searchQuery" placeholder="Filtrar Host, IP, Porta ou Descrição..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button @click="exportCSV()" class="bg-slate-900 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold text-emerald-400 transition flex items-center gap-1.5 shadow">
+                            <span>📊</span> CSV
+                        </button>
+
+                        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+                            <button @click="viewMode = 'grid'" class="px-3 py-1 rounded-lg text-xs font-bold transition" :class="viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-500'">Grid</button>
+                            <button @click="viewMode = 'table'" class="px-3 py-1 rounded-lg text-xs font-bold transition" :class="viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-500'">Tabela</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="viewMode === 'grid'">
+                    <template x-for="group in categorizedDevices()" :key="group.name">
+                        <div class="mb-10">
+                            <div class="mb-4 border-b border-slate-800 pb-2">
+                                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
+                                    <span class="mr-2 text-blue-500">📁</span> <span x-text="group.name"></span>
+                                </h2>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                <template x-for="dev in group.devices" :key="dev.id || dev.ID">
+                                    <div :id="'dev-' + dev.ip_address.replace(/\./g, '-')" 
+                                         class="bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl relative group shadow-md flex flex-col justify-between">
+                                        
+                                        <div>
+                                            <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                                <button @click="editDevice(dev)" class="bg-slate-900/90 p-1.5 rounded text-xs hover:text-blue-400" title="Editar Host">✏️</button>
+                                                <button @click="deleteDevice(dev.id || dev.ID)" class="bg-slate-900/90 p-1.5 rounded text-xs hover:text-red-400" title="Remover Host">🗑️</button>
+                                            </div>
+
+                                            <h3 class="font-bold text-sm truncate pr-12 text-slate-200" x-text="dev.name"></h3>
+                                            
+                                            <p class="text-xs font-mono text-blue-400 font-semibold mb-1 flex items-center gap-1">
+                                                <span x-text="dev.ip_address"></span>
+                                                <span x-show="dev.port" class="text-slate-500 text-[10px] bg-slate-900 px-1 rounded border border-slate-800" x-text="':' + dev.port"></span>
+                                            </p>
+                                            
+                                            <div x-show="dev.description" class="text-[11px] text-slate-400 font-mono mt-1 truncate" x-text="dev.description"></div>
+
+                                            <div x-show="dev.ip_range || dev.subnet_mask || dev.gateway" class="mt-2.5 space-y-0.5 text-[11px] font-mono text-slate-500 border-t border-slate-700/30 pt-2">
+                                                <div x-show="dev.ip_range">Faixa: <span class="text-slate-400" x-text="dev.ip_range"></span></div>
+                                                <div x-show="dev.subnet_mask">Masc: <span class="text-slate-400" x-text="dev.subnet_mask"></span></div>
+                                                <div x-show="dev.gateway">GW: <span class="text-slate-400" x-text="dev.gateway"></span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-700/30">
+                                            <div class="flex items-center gap-2">
+                                                <div class="status-dot h-2.5 w-2.5 rounded-full bg-slate-600"></div>
+                                                <span class="text-[10px] font-mono text-slate-500 latency-val">Sincronizando...</span>
+                                            </div>
+                                            <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-800 text-emerald-500" x-text="calculateSLA(dev)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="viewMode === 'table'" class="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/80 border-b border-slate-700 text-[11px] font-bold text-slate-400 uppercase">
+                                    <th class="p-4 w-12 text-center">Status</th>
+                                    <th class="p-4">Identificação</th>
+                                    <th class="p-4">Endereço IP</th>
+                                    <th class="p-4">Serviço / Alvo</th>
+                                    <th class="p-4">Disponibilidade (SLA)</th>
+                                    <th class="p-4">Pasta / Local</th>
+                                    <th class="p-4 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-700/40 text-sm">
+                                <template x-for="dev in filteredDevicesFlat()" :key="dev.id || dev.ID">
+                                    <tr :id="'dev-row-' + dev.ip_address.replace(/\./g, '-')" class="hover:bg-slate-700/20 transition">
+                                        <td class="p-4 text-center">
+                                            <div class="status-dot h-3 w-3 rounded-full bg-slate-600 mx-auto"></div>
+                                        </td>
+                                        <td class="p-4 font-bold text-slate-200">
+                                            <span x-text="dev.name"></span>
+                                            <span class="block text-[11px] font-mono text-slate-400 font-normal" x-text="dev.description"></span>
+                                        </td>
+                                        <td class="p-4 font-mono text-xs text-blue-400 font-semibold" x-text="dev.ip_address"></td>
+                                        <td class="p-4 font-mono text-xs text-slate-400">
+                                            <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800" x-text="dev.port ? 'TCP :' + dev.port : 'ICMP Ping'"></span>
+                                        </td>
+                                        <td class="p-4 font-mono text-xs font-bold text-emerald-500" x-text="calculateSLA(dev)"></td>
+                                        <td class="p-4 text-xs text-slate-400" x-text="getGroupName(dev.group_id)"></td>
+                                        <td class="p-4 text-right space-x-2">
+                                            <button @click="editDevice(dev)" class="text-xs text-blue-400 hover:underline">Editar</button>
+                                            <button @click="deleteDevice(dev.id || dev.ID)" class="text-xs text-red-400 hover:underline">Remover</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <div x-show="tab === 'scanner'" class="max-w-4xl mx-auto">
+                <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 mb-8 shadow-xl">
+                    <h2 class="text-lg font-bold text-blue-400 mb-1">Mapeamento Automatizado de Sub-rede</h2>
+                    <p class="text-xs text-slate-400 mb-6">Varra uma faixa de IPs locais para encontrar hosts ativos (Online) e resolver seus respectivos MAC Addresses via tabela ARP.</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">IP Inicial</label>
+                            <input x-model="scanForm.start_ip" placeholder="Ex: 192.168.1.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">IP Final (Máx: 256 IPs)</label>
+                            <input x-model="scanForm.end_ip" placeholder="Ex: 192.168.1.50" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <button @click="triggerScan()" :disabled="isScanning" class="w-full bg-blue-600 p-3 rounded-xl font-bold hover:bg-blue-500 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg">
+                        <span x-show="!isScanning">🚀 Processar Descoberta de Topologia</span>
+                        <span x-show="isScanning">⏳ Executando Sockets em Paralelo (Aguarde...)</span>
+                    </button>
+                </div>
+
+                <div x-show="scanResults.length > 0" class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-xl">
+                    <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-700">
+                        <div>
+                            <h3 class="font-bold text-emerald-400 flex items-center gap-2">
+                                <span>🟢</span> Identificados <span x-text="scanResults.length"></span> Equipamentos Ativos
+                            </h3>
+                            <p class="text-xs text-slate-400">Selecione os hosts para vincular a uma categoria e acompanhar na Dashboard.</p>
+                        </div>
+                        
+                        <button @click="toggleSelectAllScan()" class="text-xs font-bold text-blue-400 hover:underline">
+                            <span x-text="selectedScanHosts.length === scanResults.length ? 'Desmarcar Todos' : 'Selecionar Todos'"></span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-2 mb-6 max-h-96 overflow-y-auto pr-2">
+                        <template x-for="host in scanResults" :key="host.ip">
+                            <label class="flex items-center justify-between p-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition">
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" :value="host.ip" x-model="selectedScanHosts" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0 w-4 h-4">
+                                    <div>
+                                        <span class="font-bold text-sm text-slate-200" x-text="host.hostname"></span>
+                                        <span class="text-xs font-mono text-blue-400 block" x-text="host.ip"></span>
+                                    </div>
+                                </div>
+                                <div class="text-right font-mono text-xs text-slate-500">
+                                    <span class="block text-[10px] uppercase tracking-wider text-slate-600 font-bold">Endereço MAC</span>
+                                    <span x-text="host.mac"></span>
+                                </div>
+                            </label>
+                        </template>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700/60 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        <div class="w-full sm:w-auto flex-1">
+                            <label class="block text-[11px] font-bold text-slate-400 mb-1">Destino de Atribuição</label>
+                            <select x-model="importGroupID" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="0">Categoria Base (Rede Geral / Sem Grupo)</option>
+                                <template x-for="g in groups" :key="g.id || g.ID">
+                                    <option :value="g.id || g.ID" x-text="g.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <button @click="importSelectedHosts()" :disabled="selectedScanHosts.length === 0" class="w-full sm:w-auto bg-emerald-600 px-6 py-3 rounded-xl font-bold hover:bg-emerald-500 transition disabled:opacity-50 text-sm whitespace-nowrap shadow-lg">
+                            Anexar Selecionados à Dashboard (<span x-text="selectedScanHosts.length"></span>)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="tab === 'groups'" class="max-w-xl mx-auto">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 mb-8 shadow-xl">
+                    <h2 class="text-lg font-bold mb-2 text-blue-400">Criar Segmentos Visuais</h2>
+                    <p class="text-xs text-slate-400 mb-4">Pastas dedicadas à estruturação das exibições de roteamento e data center.</p>
+                    
+                    <div class="flex gap-2">
+                        <input x-model="groupForm.name" placeholder="Segmento (Ex: Servidores...)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        <button @click="addGroup()" class="bg-blue-600 px-6 rounded-xl font-bold hover:bg-blue-500 text-sm transition">Criar</button>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <template x-for="g in groups" :key="g.id || g.ID">
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                            <span class="font-bold text-sm text-slate-200" x-text="g.name"></span>
+                            <button @click="deleteGroup(g.id || g.ID)" class="text-red-400 hover:text-red-300 text-xs font-bold">Revogar</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="tab === 'register'" class="max-w-xl mx-auto bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
+                <h2 class="text-xl font-bold mb-6 text-blue-400" x-text="isEditing ? 'Configurar Parâmetros IP' : 'Cadastrar Elemento Estático'"></h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Rotulação Identitária *</label>
+                        <input x-model="devForm.name" placeholder="Ex: Servidor Web Principal" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div class="sm:col-span-3">
+                            <label class="block text-[11px] font-bold text-slate-400 mb-1">Endereço IPv4 *</label>
+                            <input x-model="devForm.ip_address" placeholder="Ex: 10.0.1.50" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 mb-1">Porta TCP</label>
+                            <input x-model="devForm.port" placeholder="Ex: 80" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-slate-700/50 pt-3 mt-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 mb-1">Sequência CIDR</label>
+                            <input x-model="devForm.ip_range" placeholder="Ex: 10.0.1.0/24" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 mb-1">Máscara Sub-rede</label>
+                            <input x-model="devForm.subnet_mask" placeholder="Ex: 255.255.255.0" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 mb-1">Gateway Padrão</label>
+                            <input x-model="devForm.gateway" placeholder="Ex: 10.0.1.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Vincular a Segmento</label>
+                        <select x-model="devForm.group_id" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="0">Desvincular (Pasta Geral)</option>
+                            <template x-for="g in groups" :key="g.id || g.ID">
+                                <option :value="g.id || g.ID" :selected="(g.id || g.ID) === devForm.group_id" x-text="g.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-2 pt-3">
+                        <button @click="saveDevice()" class="flex-1 bg-blue-600 p-3 rounded-xl font-bold hover:bg-blue-500 transition text-sm">Validar Transação</button>
+                        <button x-show="isEditing" @click="cancelEdit(); tab = 'dashboard'" class="bg-slate-700 px-6 rounded-xl hover:bg-slate-600 font-bold text-sm">Abortar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="tab === 'users'" class="max-w-2xl mx-auto">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 mb-6 shadow-xl flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-blue-400">Controle de Operadores</h2>
+                        <p class="text-xs text-slate-400">Credenciamento e delegação para gestão corporativa do monitoramento.</p>
+                    </div>
+                    <button @click="authTab = 'register'; isAuthenticated = false" class="bg-emerald-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-500 transition">Novo Autorizado</button>
+                </div>
+
+                <div class="space-y-3">
+                    <template x-for="u in usersList" :key="u.id || u.ID">
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-sm text-slate-200" x-text="u.name"></span>
+                                <span class="text-xs text-slate-500 block font-mono" x-text="u.email"></span>
+                            </div>
+                            <button @click="deleteUser(u.id || u.ID)" class="text-red-400 hover:text-red-300 text-xs font-bold px-2 py-1">Revogar</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="tab === 'settings'" class="max-w-xl mx-auto bg-slate-800 p-8 rounded-3xl border border-slate-700">
+                <h2 class="text-xl font-bold mb-6 text-emerald-400">Parâmetros de Alerta</h2>
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Empresa Contratante</label>
+                        <input x-model="adminProfile.company" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Webhook do Discord</label>
+                        <input x-model="adminProfile.discord_webhook" type="password" placeholder="URL do Embed..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs">
+                    </div>
+                    <button @click="saveAdminProfile()" class="w-full bg-emerald-600 p-3 rounded-xl font-bold hover:bg-emerald-500 transition shadow-lg">Confirmar Ajustes</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        function netwatchApp() {
+            return {
+                isAuthenticated: !!sessionStorage.getItem('netwatch_token'),
+                authTab: 'login', tab: 'dashboard',
+                viewMode: 'grid', searchQuery: '',
+                loginForm: { email: '', password: '' },
+                regForm: { name: '', email: '', password: '', company: '', discord_webhook: '' },
+                devForm: { id: 0, name: '', ip_address: '', port: '', ip_range: '', subnet_mask: '', gateway: '', group_id: 0 },
+                groupForm: { name: '' },
+                
+                scanForm: { start_ip: '', end_ip: '' },
+                isScanning: false, scanResults: [], selectedScanHosts: [], importGroupID: 0,
+                devices: [], groups: [], usersList: [], adminProfile: {}, isEditing: false,
+
+                init() {
+                    fetch('/api/check-setup').then(r => r.json()).then(d => {
+                        if (d.setup_needed) { 
+                            this.isAuthenticated = false; 
+                            this.authTab = 'register'; 
+                        } else if (this.isAuthenticated) { 
+                            this.loadCoreData(); 
+                            this.loadAdminProfile(); 
+                            this.setupWS(); 
+                        } else {
+                            this.authTab = 'login';
+                        }
+                    }).catch(() => { if (this.isAuthenticated) this.loadCoreData(); });
+                },
+
+                loadCoreData() {
+                    fetch('/api/groups').then(r => r.json()).then(d => this.groups = d || []);
+                    fetch('/api/devices').then(r => r.json()).then(d => this.devices = d || []);
+                },
+
+                loadUsers() {
+                    fetch('/api/users').then(r => r.json()).then(d => this.usersList = d || []);
+                },
+
+                // 👇 CADASTRO COM TRATAMENTO EXPLÍCITO E LOGIN AUTOMÁTICO
+                doRegister() { 
+                    fetch('/api/register', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.regForm) 
+                    })
+                    .then(async r => {
+                        if (!r.ok) {
+                            const errText = await r.text();
+                            throw new Error(errText || 'Erro interno ao registrar');
+                        }
+                        return r.json();
+                    })
+                    .then(() => { 
+                        // Realiza o login direto utilizando as credenciais recém-cadastradas
+                        this.loginForm.email = this.regForm.email;
+                        this.loginForm.password = this.regForm.password;
+                        alert('✅ Conta corporativa criada com sucesso! Acessando painel de observabilidade...');
+                        this.doLogin();
+                    })
+                    .catch(e => alert('❌ Erro de Cadastro: ' + e.message)); 
+                },
+
+                // 👇 LOGIN COM EXIBIÇÃO CLARA DO MOTIVO DO ERRO
+                doLogin() {
+                    fetch('/api/login', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.loginForm) 
+                    })
+                    .then(async r => {
+                        if (!r.ok) {
+                            const errText = await r.text();
+                            throw new Error(errText || 'Credenciais rejeitadas');
+                        }
+                        return r.json();
+                    })
+                    .then(d => {
+                        if(d.token) { 
+                            sessionStorage.setItem('netwatch_token', d.token); 
+                            location.reload(); 
+                        } else {
+                            alert('❌ O servidor não forneceu um token válido.');
+                        }
+                    })
+                    .catch(e => alert('❌ Falha na Autenticação: ' + e.message));
+                },
+
+                // Lógica de Filtragem Instantânea Mista
+                filteredDevicesFlat() {
+                    const q = this.searchQuery.toLowerCase();
+                    return this.devices.filter(d => 
+                        (d.name && d.name.toLowerCase().includes(q)) || 
+                        (d.ip_address && d.ip_address.includes(q)) || 
+                        (d.port && d.port.includes(q)) || 
+                        (d.description && d.description.toLowerCase().includes(q))
+                    );
+                },
+
+                categorizedDevices() {
+                    const flat = this.filteredDevicesFlat();
+                    const map = { 'Rede Geral': { devices: [] } };
+                    this.groups.forEach(g => map[g.name] = { devices: [] });
+                    flat.forEach(d => {
+                        const g = this.groups.find(gr => (gr.id || gr.ID) === d.group_id);
+                        const name = g ? g.name : 'Rede Geral';
+                        if (!map[name]) map[name] = { devices: [] };
+                        map[name].devices.push(d);
+                    });
+                    return Object.keys(map).filter(k => map[k].devices.length > 0).map(k => ({ name: k, devices: map[k].devices }));
+                },
+
+                getGroupName(gid) {
+                    const g = this.groups.find(gr => (gr.id || gr.ID) === gid);
+                    return g ? g.name : 'Rede Geral';
+                },
+
+                // Cálculo de Uptime e Disponibilidade do Host
+                calculateSLA(dev) {
+                    if (!dev.total_checks || dev.total_checks === 0) return '100.0%';
+                    const p = (dev.successful_checks / dev.total_checks) * 100;
+                    return p.toFixed(1) + '%';
+                },
+
+                // Geração nativa e limpa de Relatório CSV
+                exportCSV() {
+                    let csv = "Identificacao,IP,Porta,Segmento,Descricao,SLA_Uptime\n";
+                    this.devices.forEach(d => {
+                        const sName = `"${(d.name || '').replace(/"/g, '""')}"`;
+                        const sDesc = `"${(d.description || '').replace(/"/g, '""')}"`;
+                        const gName = `"${this.getGroupName(d.group_id)}"`;
+                        csv += `${sName},${d.ip_address},${d.port || 'ICMP'},${gName},${sDesc},${this.calculateSLA(d)}\n`;
+                    });
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.setAttribute("download", `Inventario_NetWatch_${new Date().toISOString().split('T')[0]}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                },
+
+                triggerScan() {
+                    if (!this.scanForm.start_ip || !this.scanForm.end_ip) {
+                        return alert('Declare a borda de varredura (Início e Fim).');
+                    }
+                    this.isScanning = true;
+                    this.scanResults = [];
+                    this.selectedScanHosts = [];
+
+                    fetch('/api/discovery/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.scanForm)
+                    })
+                    .then(async r => {
+                        if (!r.ok) {
+                            const err = await r.text();
+                            throw new Error(err || 'Excedeu limites ou faixa inválida');
+                        }
+                        return r.json();
+                    })
+                    .then(data => {
+                        this.scanResults = data || [];
+                        this.selectedScanHosts = this.scanResults.map(h => h.ip);
+                    })
+                    .catch(e => alert('❌ Erro no Scanner: ' + e.message))
+                    .finally(() => this.isScanning = false);
+                },
+
+                toggleSelectAllScan() {
+                    if (this.selectedScanHosts.length === this.scanResults.length) {
+                        this.selectedScanHosts = [];
+                    } else {
+                        this.selectedScanHosts = this.scanResults.map(h => h.ip);
+                    }
+                },
+
+                importSelectedHosts() {
+                    const hostsToImport = this.scanResults.filter(h => this.selectedScanHosts.includes(h.ip));
+                    const payload = {
+                        group_id: parseInt(this.importGroupID) === 0 ? null : parseInt(this.importGroupID),
+                        hosts: hostsToImport
+                    };
+
+                    fetch('/api/discovery/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(() => {
+                        alert('✅ Dispositivos anexados com sucesso para processamento do motor.');
+                        this.scanResults = [];
+                        this.selectedScanHosts = [];
+                        this.loadCoreData();
+                        this.tab = 'dashboard';
+                    });
+                },
+
+                saveDevice() {
+                    if (!this.devForm.name || !this.devForm.ip_address) return alert('* O preenchimento do IP e Nome é estrito');
+                    const method = this.isEditing ? 'PUT' : 'POST';
+                    const url = this.isEditing ? `/api/devices/${this.devForm.id}` : '/api/devices';
+                    
+                    const payload = { ...this.devForm };
+                    payload.group_id = parseInt(payload.group_id);
+                    if (payload.group_id === 0 || isNaN(payload.group_id)) payload.group_id = null;
+                    
+                    fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                    .then(r => { if (r.ok) { this.loadCoreData(); this.cancelEdit(); this.tab = 'dashboard'; } });
+                },
+
+                editDevice(dev) { 
+                    this.isEditing = true; 
+                    this.devForm = { ...dev, id: dev.id || dev.ID, group_id: dev.group_id || 0 }; 
+                    this.tab = 'register'; 
+                },
+
+                deleteDevice(id) {
+                    if (confirm('Decomissionar este alvo do monitoramento?')) fetch(`/api/devices/${id}`, { method: 'DELETE' }).then(() => this.loadCoreData());
+                },
+
+                deleteGroup(id) {
+                    if (confirm('Remover segmentação visual?')) fetch(`/api/groups/${id}`, { method: 'DELETE' }).then(() => this.loadCoreData());
+                },
+
+                deleteUser(id) {
+                    if (confirm('Revogar esta credencial? A liberação do e-mail no arquivo netwatch.db será instantânea.')) {
+                        fetch(`/api/users/${id}`, { method: 'DELETE' }).then(() => this.loadUsers());
+                    }
+                },
+
+                addGroup() {
+                    if (!this.groupForm.name) return;
+                    fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.groupForm) })
+                    .then(() => { this.groupForm = { name: '' }; this.loadCoreData(); });
+                },
+
+                loadAdminProfile() {
+                    fetch('/api/users').then(r => r.json()).then(u => { if (u && u.length > 0) this.adminProfile = u[0]; });
+                },
+
+                saveAdminProfile() {
+                    fetch(`/api/users/${this.adminProfile.id || this.adminProfile.ID}`, { 
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(this.adminProfile) 
+                    })
+                    .then(() => alert('✅ Configurações de alerta e webhook absorvidas no banco de dados.'));
+                },
+
+                shutdownServer() {
+                    if (confirm('Finalizar a execução dos sockets e do .exe imediatamente?')) fetch('/api/shutdown', { method: 'POST' }).finally(() => { sessionStorage.removeItem('netwatch_token'); location.reload(); });
+                },
+
+                logout() { sessionStorage.removeItem('netwatch_token'); location.reload(); },
+                cancelEdit() { this.isEditing = false; this.devForm = { id: 0, name: '', ip_address: '', port: '', ip_range: '', subnet_mask: '', gateway: '', group_id: 0 }; },
+
+                setupWS() {
+                    const ws = new WebSocket(`ws://${window.location.host}/ws`);
+                    ws.onmessage = (e) => {
+                        const data = JSON.parse(e.data);
+                        
+                        const card = document.getElementById('dev-' + data.ip.replace(/\./g, '-'));
+                        const row = document.getElementById('dev-row-' + data.ip.replace(/\./g, '-'));
+                        const isOnline = data.status === 'ONLINE';
+                        
+                        if (card) {
+                            const dot = card.querySelector('.status-dot');
+                            const lat = card.querySelector('.latency-val');
+                            dot.className = `status-dot h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-red-500'}`;
+                            lat.innerText = `${data.status} | ${data.latency}`;
+                        }
+                        if (row) {
+                            const dot = row.querySelector('.status-dot');
+                            dot.className = `status-dot h-3 w-3 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-red-500'} mx-auto`;
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
